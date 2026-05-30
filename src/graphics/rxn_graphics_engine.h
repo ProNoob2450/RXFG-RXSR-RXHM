@@ -37,21 +37,25 @@ public:
     void SetTargetFramerate(int fps);
 
 private:
-    // Flag to signal the graphics thread to stop.
-    std::atomic<bool> m_stopFlag;
+    /**
+     * @brief The main loop for graphics processing.
+     */
+    void GraphicsLoop();
 
-    // Thread for the graphics processing loop.
+    /**
+     * @brief Shuts down and releases all graphics resources.
+     */
+    void Shutdown();
+
+    // -- Core Members --
     std::thread m_graphicsThread;
+    std::atomic<bool> m_stopFlag;
+    
+    // -- Configuration & State --
+    RXNConfig* m_configManager; // Non-owning pointer
+    HWND m_targetHWND;
+    std::atomic<int> m_targetFramerate;
 
-    // Pointer to the configuration manager. Not owned by this class.
-    RXNConfig* m_configManager;
-
-    // Handle to the target window for capture.
-    HWND m_targetWindow;
-
-    // The capture pipeline instance. Owned by this class.
+    // -- Pipelines & Renderers --
     std::unique_ptr<RXNCapturePipeline> m_capturePipeline;
-
-    // Target framerate for frame timing.
-    int m_targetFramerate; 
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <d3d11.h>
+#include <atomic>
 
 // Forward declaration from rxn_config.h to avoid including the full header.
 struct RXNSettings;
@@ -18,55 +19,33 @@ public:
     RXNSuperResolution();
     ~RXNSuperResolution();
 
-    // Initializes the SR system, creates the compute shader and constant buffer.
-    // Must be called once before Execute can be used.
-    bool Initialize(ID3D11Device* device);
+    /**
+     * @brief Initializes the SR system, preparing it for operation.
+     * @param device The D3D11 device.
+     * @param settings The current application settings.
+     * @return HRESULT indicating success or failure.
+     */
+    HRESULT Initialize(ID3D11Device* device, const RXNSettings& settings);
 
-    // Tears down all DirectX resources.
+    /**
+     * @brief Tears down all SR-related DirectX resources.
+     */
     void Shutdown();
 
-    // Executes the spatial upscaling and sharpening compute shader.
-    // Takes an input frame and returns a texture containing the upscaled result.
-    ID3D11Texture2D* Execute(
-        ID3D11DeviceContext* context,
-        ID3D11Texture2D* input_frame,
-        const RXNSettings& settings,
-        RXSR_ScalingProfile profile
-    );
+    /**
+     * @brief Processes a frame for super resolution.
+     * @param pInputFrame The input texture to be upscaled.
+     * @param pOutputFrame The output texture where the upscaled frame will be written.
+     * @return HRESULT indicating success or failure.
+     */
+    HRESULT ProcessFrame(ID3D11Texture2D* pInputFrame, ID3D11Texture2D* pOutputFrame);
 
+    // -- Member Variables --
 private:
-    // Helper function to release D3D resources safely.
-    template<typename T>
-    void SafeRelease(T*& ptr) {
-        if (ptr) {
-            ptr->Release();
-            ptr = nullptr;
-        }
-    }
+    std::atomic<bool> m_isInitialized;
+    float m_upscaleFactor;
+    ID3D11Device* m_d3d11Device; // Non-owning pointer
 
-    // Helper to create or resize the output texture if needed.
-    bool CheckAndCreateResources(ID3D11Device* device, ID3D11Texture2D* input_frame, RXSR_ScalingProfile profile);
-
-    // --- DirectX 11 Resources ---
-    ID3D11ComputeShader* m_computeShader = nullptr;
-    ID3D11Buffer* m_constantBuffer = nullptr;
-
-    // Output resources
-    ID3D11Texture2D* m_upscaledTexture = nullptr;
-    ID3D11UnorderedAccessView* m_upscaledTextureUAV = nullptr;
-
-    // Keep track of the last configuration to avoid re-creating resources every frame.
-    UINT m_lastInputWidth = 0;
-    UINT m_lastInputHeight = 0;
-    RXSR_ScalingProfile m_lastProfile = RXSR_ScalingProfile::Off;
-
-    // Struct that maps to the cbuffer in the compute shader.
-    struct CS_Constants {
-        unsigned int inputWidth;
-        unsigned int inputHeight;
-        unsigned int outputWidth;
-        unsigned int outputHeight;
-        float sharpeningAmount; // 0.0 (soft) to 1.0 (sharp)
-        float _pad[3];          // Padding to ensure 16-byte alignment
-    };
+    // Placeholder for future SR implementation details
+    // E.g., compute shaders, constant buffers, textures, etc.
 };
