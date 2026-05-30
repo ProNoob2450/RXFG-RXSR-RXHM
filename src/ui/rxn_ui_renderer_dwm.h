@@ -1,25 +1,20 @@
 #pragma once
-
-#include <Windows.h>
-#include <dwmapi.h>
-#include "../main/rxn_config.h" // For UIMode enum
+#include <windows.h>
+#include "../main/rxn_config.h" // For SystemBackdropType
 
 class RXNUIRendererDWM {
 public:
     RXNUIRendererDWM();
-    ~RXNUIRendererDWM();
 
-    // Initializes the renderer with the target window handle.
-    bool Initialize(HWND hwnd);
+    // Initializes the DWM renderer.
+    void Initialize();
 
-    // Applies the selected backdrop effect based on the UI mode.
-    // This should be called after initialization and whenever the mode changes.
-    bool ApplyBackdropEffect(UIMode mode);
+    // Applies a system backdrop material to the specified window.
+    void ApplyBackdrop(HWND hwnd, SystemBackdropType type);
 
-    // In a full implementation, this would handle DWM-specific window messages
-    // to toggle effects when the window becomes inactive, for example.
-    void HandleWindowMessage(UINT uMsg, WPARAM wParam);
+    // Shuts down the DWM renderer.
+    void Shutdown();
 
 private:
-    HWND m_hwnd = nullptr;
+    bool m_isInitialized;
 };

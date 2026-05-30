@@ -1,49 +1,57 @@
 #pragma once
-
-#include <Windows.h>
 #include <thread>
-#include <atomic>
-#include <chrono>
 #include <memory>
+#include <atomic>
+#include <windows.h> // For HWND
 
-// Forward declarations to avoid circular dependencies and reduce compile times.
+class RXNConfig; // Forward declaration
 class RXNCapturePipeline;
-class RXNConfig;
 
 class RXNGraphicsEngine {
 public:
     RXNGraphicsEngine();
     ~RXNGraphicsEngine();
 
-    // Initializes the engine, its components (like the capture pipeline),
-    // and links it to the application's central configuration.
+    /**
+     * @brief Initializes the graphics engine.
+     * @param target_hwnd The window handle to capture.
+     * @param config_manager Pointer to the configuration manager.
+     * @return True if initialization was successful, false otherwise.
+     */
     bool Initialize(HWND target_hwnd, RXNConfig* config_manager);
 
-    // Starts the high-priority graphics thread.
+    /**
+     * @brief Starts the graphics processing loop in a separate thread.
+     */
     void Start();
 
-    // Signals the graphics thread to terminate safely and waits for it to join.
+    /**
+     * @brief Stops the graphics processing loop and waits for the thread to exit.
+     */
     void Stop();
 
-    // Dynamically sets the target frame rate for the graphics processing loop.
+    /**
+     * @brief Sets the target framerate for the graphics loop.
+     * @param fps The desired frames per second.
+     */
     void SetTargetFramerate(int fps);
 
 private:
-    // The main function for the graphics thread. This is where all the work happens.
-    void GraphicsLoop();
-
-    // --- Member Variables ---
-    std::thread m_graphicsThread;
+    // Flag to signal the graphics thread to stop.
     std::atomic<bool> m_stopFlag;
 
-    // A smart pointer to the capture pipeline. The engine owns this component.
+    // Thread for the graphics processing loop.
+    std::thread m_graphicsThread;
+
+    // Pointer to the configuration manager. Not owned by this class.
+    RXNConfig* m_configManager;
+
+    // Handle to the target window for capture.
+    HWND m_targetWindow;
+
+    // The capture pipeline instance. Owned by this class.
     std::unique_ptr<RXNCapturePipeline> m_capturePipeline;
-    
-    // A non-owning pointer to the configuration object, which is owned by the main app.
-    RXNConfig* m_configManager = nullptr;
 
-    // Frame pacing variables to maintain a steady rhythm.
-    std::chrono::nanoseconds m_targetFrameTime;
-
-    HWND m_targetWindow = nullptr;
+    // Target framerate for frame timing.
+    int m_targetFramerate; 
 };

@@ -6,15 +6,15 @@ RXNFrameGeneration::~RXNFrameGeneration() {
     Shutdown();
 }
 
-HRESULT RXNFrameGeneration::Initialize(ID3D11Device* pDevice) {
+bool RXNFrameGeneration::Initialize(ID3D11Device* pDevice) {
     if (!pDevice) {
-        return E_INVALIDARG;
+        return false;
     }
     m_d3d11Device = pDevice;
     // In a real implementation, you would initialize resources here
     // (e.g., create motion vector textures, intermediate buffers, etc.)
     m_isInitialized = true;
-    return S_OK;
+    return true; // Return bool to match header
 }
 
 void RXNFrameGeneration::Shutdown() {

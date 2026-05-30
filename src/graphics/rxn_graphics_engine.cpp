@@ -52,13 +52,13 @@ void RXNGraphicsEngine::SetTargetFramerate(int fps) {
     // Clamp FPS to a reasonable range.
     if (fps < 1) fps = 1;
     if (fps > 1000) fps = 1000; // Arbitrary high limit
-    m_targetFramerate = fps;
+    m_targetFramerate = fps; // Use the member variable declared in the header
 }
 
 void RXNGraphicsEngine::GraphicsLoop() {
     // Calculate the delay needed to achieve the target framerate.
     // Time in milliseconds.
-    const std::chrono::milliseconds frame_duration(1000 / m_targetFramerate);
+    const std::chrono::milliseconds frame_duration(1000 / m_targetFramerate); // Use the member variable
     auto last_frame_time = std::chrono::high_resolution_clock::now();
 
     while (!m_stopFlag) {
