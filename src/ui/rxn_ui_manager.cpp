@@ -2,10 +2,8 @@
 #include "../main/rxn_config.h"
 #include <stdexcept>
 
-// Global pointer to the UI manager instance for the WndProc
 static RXNUIManager* g_uiManager = nullptr;
 
-// Forward declare the message handler
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 RXNUIManager::RXNUIManager()
@@ -25,16 +23,13 @@ RXNConfig* RXNUIManager::GetConfig() {
 bool RXNUIManager::Initialize(HINSTANCE hInstance, RXNConfig* config_manager) {
     m_hInstance = hInstance;
     m_configManager = config_manager;
-    g_uiManager = this; // Set the global pointer
-
-    // Start the UI thread, which will create the window
+    g_uiManager = this;
     Start();
     return m_hWnd != nullptr;
 }
 
 void RXNUIManager::Start() {
     if (m_uiThread.joinable()) return;
-
     m_stopFlag = false;
     m_uiThread = std::thread(&RXNUIManager::UIThreadFunction, this);
 }
@@ -42,7 +37,6 @@ void RXNUIManager::Start() {
 void RXNUIManager::Stop() {
     m_stopFlag = true;
     if (m_uiThread.joinable()) {
-        // If the message loop is blocked, post a quit message to unblock it
         if (m_hWnd) PostMessage(m_hWnd, WM_CLOSE, 0, 0);
         m_uiThread.join();
     }
@@ -53,15 +47,13 @@ HWND RXNUIManager::GetWindowHandle() const {
 }
 
 void RXNUIManager::UIThreadFunction() {
-    // --- 1. Register window class ---
-    WNDCLASS wc = {};
+    WNDCLASSW wc = {};
     wc.lpfnWndProc = WndProc;
     wc.hInstance = m_hInstance;
     wc.lpszClassName = L"RXNUIWindowClass";
-    RegisterClass(&wc);
+    RegisterClassW(&wc);
 
-    // --- 2. Create the window ---
-    m_hWnd = CreateWindowEx(
+    m_hWnd = CreateWindowExW(
         0, L"RXNUIWindowClass", L"RXN Control Panel",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
         CW_USEDEFAULT, CW_USEDEFAULT, 250, 150,
@@ -72,22 +64,17 @@ void RXNUIManager::UIThreadFunction() {
         throw std::runtime_error("Failed to create UI window.");
     }
 
-    // --- 3. Create controls ---
-    // Super Resolution Toggle
     CreateWindowW(L"static", L"Super Resolution:", WS_CHILD | WS_VISIBLE,
                   10, 20, 150, 20, m_hWnd, (HMENU)IDC_LABEL_SR, m_hInstance, nullptr);
     HWND hwndSRToggle = CreateWindowW(L"button", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
                                     170, 20, 20, 20, m_hWnd, (HMENU)IDC_TOGGLE_SR, m_hInstance, nullptr);
 
-    // --- 4. Initialize control states from config ---
     if (m_configManager) {
-        // Use correct Win32 API signature for CheckDlgButton
         CheckDlgButton(m_hWnd, IDC_TOGGLE_SR, m_configManager->GetSettings().enableSuperResolution ? BST_CHECKED : BST_UNCHECKED);
     }
 
     ShowWindow(m_hWnd, SW_SHOW);
 
-    // --- 5. Message Loop ---
     MSG msg = {};
     while (GetMessage(&msg, nullptr, 0, 0) > 0 && !m_stopFlag) {
         TranslateMessage(&msg);
@@ -98,7 +85,6 @@ void RXNUIManager::UIThreadFunction() {
     m_hWnd = nullptr;
 }
 
-// --- Global Window Procedure ---
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_COMMAND:
@@ -111,7 +97,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                     {
                         bool isChecked = (IsDlgButtonChecked(hWnd, IDC_TOGGLE_SR) == BST_CHECKED);
                         config->GetSettings().enableSuperResolution = isChecked;
-                        config->Save(); // Use the correct save method
+                        config->Save();
                         break;
                     }
                 }
