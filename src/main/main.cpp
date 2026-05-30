@@ -30,7 +30,7 @@ int WINAPI WinMain(
     // --- 3. Component Initialization and Thread Launch ---
 
     // Initialize the configuration manager first, as other components depend on it.
-    configManager.Initialize("rxn_settings.json");
+    configManager.Initialize(L"rxn_settings.json"); // CORRECTED: Pass a wide-string literal.
 
     // Initialize and start the UI Manager. This will create the main window
     // on a dedicated thread, keeping the UI responsive at all times.
