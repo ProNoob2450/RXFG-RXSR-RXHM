@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -22,6 +25,7 @@ jobs:
         src/main/main.cpp ^
         src/main/rxn_config.cpp ^
         src/telemetry/rxn_hardware_monitor.cpp ^
+        src/telemetry/rxn_game_optimizer.cpp ^
         src/ui/rxn_ui_manager.cpp ^
         src/ui/rxn_ui_renderer_dwm.cpp ^
         src/ui/rxn_ui_renderer_dcomp.cpp ^
