@@ -133,11 +133,10 @@ HRESULT RXNCapturePipeline::InitWgc(HWND hwnd) {
     HRESULT hr = factory->CreateForWindow(hwnd, winrt::guid_of<winrt::Windows::Graphics::Capture::GraphicsCaptureItem>(), winrt::put_abi(m_wgcItem));
     if (FAILED(hr)) return hr;
 
-    auto d3dDevice = winrt::get_activation_factory<winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice>();
-
-    auto dxgiDevice = m_device.as<IDXGIDevice>();
-
+    // Modern way to get the WinRT IDirect3DDevice
+    winrt::com_ptr<IDXGIDevice> dxgiDevice = m_device.as<IDXGIDevice>();
     winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice winrtDevice;
+    const auto iid = winrt::guid_of<winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice>();
     hr = CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.get(), reinterpret_cast<IInspectable**>(winrt::put_abi(winrtDevice)));
     if (FAILED(hr)) return hr;
     

@@ -1,11 +1,9 @@
 #pragma once
 
-#include <atomic>
-
 /**
  * @struct RXNTelemetryData
  * @brief A plain data structure to hold a snapshot of telemetry data.
- * 
+ *
  * This struct contains non-atomic members and is used to safely transfer
  * telemetry data across thread boundaries. The RXNHardwareMonitor is responsible
  * for creating instances of this struct in a thread-safe manner.
