@@ -1,38 +1,37 @@
 #pragma once
 
-#include <atomic>
 #include <thread>
-
-// A structure to hold all telemetry data. Using atomic members
-// ensures that reads and writes from different threads are safe
-// without requiring expensive mutexes.
-struct RXNTelemetryData {
-    std::atomic<double> frameTime;      // Placeholder for game frame time in ms
-    std::atomic<int>    gpuTemperature; // Placeholder for GPU temp in Celsius
-    std::atomic<int>    gpuUsagePercent;  // Placeholder for GPU utilization %
-    std::atomic<int>    vramUsageMB;      // Placeholder for VRAM usage in megabytes
-};
+#include <atomic>
+#include "rxn_telemetry_data.h"
 
 class RXNHardwareMonitor {
 public:
     RXNHardwareMonitor();
     ~RXNHardwareMonitor();
 
-    // Kicks off the background polling thread.
+    // Initializes the hardware monitor.
+    void Initialize();
+
+    // Starts the background monitoring thread.
     void Start();
 
-    // Signals the background thread to stop and waits for it to join.
+    // Stops the background monitoring thread.
     void Stop();
 
-    // Provides safe, read-only access to the latest telemetry data.
+    // Safely retrieves the latest collected telemetry data.
     RXNTelemetryData GetLatestData() const;
 
 private:
-    // The main function for the background thread.
-    void TelemetryLoop();
+    // The background thread for polling hardware data.
+    std::thread m_monitorThread;
 
-    // --- Member Variables ---
+    // Atomic flag to control the thread's lifecycle.
     std::atomic<bool> m_stopFlag;
-    std::thread m_telemetryThread;
+
+    // The shared data structure for telemetry information.
+    // Note: The struct itself uses atomic members for thread-safe updates.
     RXNTelemetryData m_telemetryData;
+
+    // The main loop for the monitoring thread.
+    void MonitorLoop();
 };

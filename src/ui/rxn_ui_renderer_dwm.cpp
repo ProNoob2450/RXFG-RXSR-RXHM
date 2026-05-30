@@ -1,77 +1,50 @@
 #include "rxn_ui_renderer_dwm.h"
+#include <dwmapi.h> // For DWM APIs
 
-// --- DWM API Definitions for Modern Backdrops ---
-// These are typically defined in newer SDKs but are included here for compatibility.
+// Link the DWM library
+#pragma comment(lib, "dwmapi.lib")
 
-#ifndef DWMWA_SYSTEMBACKDROP_TYPE
-#define DWMWA_SYSTEMBACKDROP_TYPE 38
-#endif
+RXNUIRendererDWM::RXNUIRendererDWM() : m_isInitialized(false) {}
 
-enum DWM_SYSTEMBACKDROP_TYPE {
-    DWMSBT_AUTO = 0,            // Let DWM decide.
-    DWMSBT_NONE = 1,            // No backdrop.
-    DWMSBT_MAINWINDOW = 2,      // Mica
-    DWMSBT_TRANSIENTWINDOW = 3, // Acrylic
-    DWMSBT_TABBEDWINDOW = 4     // Tabbed Mica
-};
-
-RXNUIRendererDWM::RXNUIRendererDWM() = default;
-
-RXNUIRendererDWM::~RXNUIRendererDWM() = default; // No cleanup needed for this simple class
-
-bool RXNUIRendererDWM::Initialize(HWND hwnd) {
-    if (!IsWindow(hwnd)) {
-        return false;
-    }
-    m_hwnd = hwnd;
-    return true;
+void RXNUIRendererDWM::Initialize() {
+    // DWM is available on Windows Vista and later.
+    // No explicit initialization is required for basic features.
+    m_isInitialized = true;
 }
 
-bool RXNUIRendererDWM::ApplyBackdropEffect(UIMode mode) {
-    if (!m_hwnd) {
-        return false;
+void RXNUIRendererDWM::ApplyBackdrop(HWND hwnd, SystemBackdropType type) {
+    if (!m_isInitialized) return;
+
+    // Use the official DWM_SYSTEMBACKDROP_TYPE from the SDK
+    DWM_SYSTEMBACKDROP_TYPE dwm_backdrop_type = DWMSBT_AUTO;
+
+    switch (type) {
+        case SystemBackdropType::None:
+            // DWMSBT_AUTO will disable the backdrop if already applied
+            dwm_backdrop_type = DWMSBT_AUTO;
+            break;
+        case SystemBackdropType::Mica:
+            // Corresponds to "Mica"
+            dwm_backdrop_type = DWMSBT_MAINWINDOW;
+            break;
+        case SystemBackdropType::Acrylic:
+            // Corresponds to "Acrylic"
+            dwm_backdrop_type = DWMSBT_TRANSIENTWINDOW;
+            break;
+        case SystemBackdropType::MicaAlt:
+            // Corresponds to "Mica Alt"
+            dwm_backdrop_type = DWMSBT_TABBEDWINDOW;
+            break;
     }
 
-    // Default to turning off any special backdrop.
-    DWM_SYSTEMBACKDROP_TYPE backdrop_type = DWMSBT_NONE;
-
-    switch (mode) {
-    case UIMode::Mica:
-        backdrop_type = DWMSBT_MAINWINDOW;
-        break;
-    case UIMode::Acrylic:
-        backdrop_type = DWMSBT_TRANSIENTWINDOW;
-        break;
-    case UIMode::Transparent: // Map Transparent to Acrylic for a similar effect
-        backdrop_type = DWMSBT_TRANSIENTWINDOW;
-        break;
-    case UIMode::Solid: // Solid and default fall through to DWMSBT_NONE
-    default:
-        break;
-    }
-
-    // Apply the attribute to the window.
-    HRESULT hr = DwmSetWindowAttribute(
-        m_hwnd,
-        DWMWA_SYSTEMBACKDROP_TYPE,
-        &backdrop_type,
-        sizeof(backdrop_type)
-    );
-
-    return SUCCEEDED(hr);
+    // DwmSetWindowAttribute is the API to control this feature.
+    DwmSetWindowAttribute(hwnd, 
+                          DWMWA_SYSTEMBACKDROP_TYPE, 
+                          &dwm_backdrop_type, 
+                          sizeof(dwm_backdrop_type));
 }
 
-void RXNUIRendererDWM::HandleWindowMessage(UINT uMsg, WPARAM wParam) {
-    // This method is a placeholder for future enhancements.
-    // A complete implementation would listen for messages like WM_ACTIVATE
-    // to possibly disable the effect when the window is not in focus,
-    // saving system resources, as per Microsoft's guidelines.
-    // For example:
-    // if (uMsg == WM_ACTIVATE) {
-    //     if (LOWORD(wParam) == WA_INACTIVE) {
-    //         ApplyBackdropEffect(UIMode::Solid); // Turn off effect
-    //     } else {
-    //         // Restore the user's chosen effect
-    //     }
-    // }
+void RXNUIRendererDWM::Shutdown() {
+    // No explicit shutdown needed for DWM.
+    m_isInitialized = false;
 }

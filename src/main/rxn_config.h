@@ -1,62 +1,59 @@
 #pragma once
 
-#include <Windows.h>
 #include <string>
+#include <vector>
+#include <windows.h> // For HWND
 
-// Defines the aesthetic mode for the user interface.
-enum class UIMode {
-    Performance, // Native DWM-rendered Mica/Acrylic effect. Zero-cost.
-    Overdrive    // Custom DirectComposition/HLSL liquid glass effect. For high-end systems.
-};
-
-// Defines the spatial upscaling algorithm to be used by RXSR.
-enum class UpscaleMode {
-    None,        // No upscaling.
-    Bicubic,     // Fast and effective bicubic filtering.
-    Lanczos      // Higher-quality Lanczos filtering.
-};
-
-// A single structure to hold all application settings.
-// This simplifies passing configuration data between modules.
-struct RXNSettings {
-    // [UI] Section
-    UIMode      uiMode;
-
-    // [Capture] Section
-    bool        preferWGC;          // True to prefer WGC, false to default to DXGI.
-
-    // [SuperResolution] Section
-    bool        enableSR;           // Master toggle for RXSR 1.0.
-    UpscaleMode upscaleMode;        // Which scaling filter to use.
-    float       sharpeningAmount;   // 0.0f to 1.0f for the CAS pass.
-
-    // [FrameGeneration] Section
-    bool        enableFG;           // Master toggle for RXFG 1.0.
+// Defines the available DWM backdrop materials for the UI.
+enum class SystemBackdropType {
+    None,
+    Mica,
+    Acrylic,
+    MicaAlt
 };
 
 class RXNConfig {
 public:
-    // Constructor initializes the config manager with a path to the .ini file.
-    RXNConfig(const wchar_t* config_filename = L"rxn_config.ini");
+    RXNConfig();
 
-    // Reads all settings from the .ini file into the internal settings structure.
-    // If the file doesn't exist, it creates one with default values.
-    void LoadSettings();
+    // Loads settings from the specified JSON file.
+    bool Initialize(const wchar_t* config_path);
 
-    // Writes the current state of the internal settings structure to the .ini file.
+    // Saves the current settings to the JSON file.
     void SaveSettings();
 
-    // Provides read-only access to the current settings.
-    const RXNSettings& GetSettings() const;
+    // --- Getters and Setters for Configuration Properties ---
 
-    // Updates the internal settings structure. Call SaveSettings() to persist.
-    void UpdateSettings(const RXNSettings& new_settings);
+    SystemBackdropType GetSystemBackdropType() const;
+    void SetSystemBackdropType(SystemBackdropType type);
+
+    bool IsSuperResolutionEnabled() const;
+    void SetSuperResolutionEnabled(bool enabled);
+
+    bool IsFrameGenerationEnabled() const;
+    void SetFrameGenerationEnabled(bool enabled);
+
+    HWND GetTargetWindow() const;
+    void SetTargetWindow(HWND hwnd);
 
 private:
-    // Helper to convert boolean to string for .ini file.
-    std::wstring BoolToString(bool value);
+    // Path to the configuration file.
+    std::wstring m_configPath;
 
-    // --- Member Variables ---
-    std::wstring m_filename;   // The full path to "rxn_config.ini".
-    RXNSettings m_settings;    // The in-memory cache of all settings.
+    // --- Configuration Properties ---
+
+    // The type of DWM backdrop to apply (e.g., Mica, Acrylic).
+    SystemBackdropType m_backdropType;
+
+    // Flag indicating whether super resolution is enabled.
+    bool m_superResolutionEnabled;
+
+    // Flag indicating whether frame generation is enabled.
+    bool m_frameGenerationEnabled;
+
+    // The target window for the capture pipeline.
+    HWND m_targetWindow;
+
+    // Helper method to load settings from the member path.
+    void LoadSettings();
 };
