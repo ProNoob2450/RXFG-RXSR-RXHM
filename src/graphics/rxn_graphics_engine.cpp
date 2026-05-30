@@ -2,14 +2,15 @@
 #include "../main/rxn_config.h"       // To access settings
 #include "rxn_capture_pipeline.h" // To access the capture API
 
-RXNGraphicsEngine::RXNGraphicsEngine() 
-    : m_stopFlag(false), m_configManager(nullptr), m_targetWindow(nullptr) {
+RXNGraphicsEngine::RXNGraphicsEngine()
+    : m_stopFlag(false), m_configManager(nullptr), m_targetWindow(nullptr), m_targetFramerate(60) {
     // Default to 60 FPS until set otherwise.
-    SetTargetFramerate(60);
 }
 
 RXNGraphicsEngine::~RXNGraphicsEngine() {
     Stop();
+    // Ensure capture pipeline is cleaned up.
+    // std::unique_ptr will handle deletion.
 }
 
 bool RXNGraphicsEngine::Initialize(HWND target_hwnd, RXNConfig* config_manager) {
@@ -22,94 +23,80 @@ bool RXNGraphicsEngine::Initialize(HWND target_hwnd, RXNConfig* config_manager) 
     // The graphics engine takes ownership of the capture pipeline.
     m_capturePipeline = std::make_unique<RXNCapturePipeline>();
     HRESULT hr = m_capturePipeline->Initialize(m_targetWindow);
-    
-    return SUCCEEDED(hr);
+    if (FAILED(hr)) {
+        // Log error or handle failure appropriately
+        return false;
+    }
+
+    // Initialization successful.
+    return true;
 }
 
 void RXNGraphicsEngine::Start() {
     if (m_graphicsThread.joinable()) {
         return; // Thread is already running.
     }
-
-    m_stopFlag.store(false);
+    m_stopFlag = false;
+    // Create and launch the graphics thread.
     m_graphicsThread = std::thread(&RXNGraphicsEngine::GraphicsLoop, this);
-
-    // Elevate the thread priority to ensure it is not preempted by other system tasks,
-    // which is critical for smooth frame pacing.
-    if (m_graphicsThread.native_handle()) {
-        SetThreadPriority(m_graphicsThread.native_handle(), THREAD_PRIORITY_HIGHEST); // REALTIME_PRIORITY requires admin
-    }
 }
 
 void RXNGraphicsEngine::Stop() {
-    m_stopFlag.store(true);
     if (m_graphicsThread.joinable()) {
-        m_graphicsThread.join();
+        m_stopFlag = true; // Signal the thread to stop.
+        m_graphicsThread.join(); // Wait for the thread to finish.
     }
 }
 
 void RXNGraphicsEngine::SetTargetFramerate(int fps) {
-    if (fps > 0) {
-        m_targetFrameTime = std::chrono::nanoseconds(1000000000 / fps);
-    } else {
-        // A value of 0 or less indicates an unlocked framerate.
-        m_targetFrameTime = std::chrono::nanoseconds(0);
-    }
+    // Clamp FPS to a reasonable range.
+    if (fps < 1) fps = 1;
+    if (fps > 1000) fps = 1000; // Arbitrary high limit
+    m_targetFramerate = fps;
 }
 
 void RXNGraphicsEngine::GraphicsLoop() {
-    auto lastFrameTime = std::chrono::high_resolution_clock::now();
+    // Calculate the delay needed to achieve the target framerate.
+    // Time in milliseconds.
+    const std::chrono::milliseconds frame_duration(1000 / m_targetFramerate);
+    auto last_frame_time = std::chrono::high_resolution_clock::now();
 
-    while (!m_stopFlag.load()) {
-        auto startOfFrame = std::chrono::high_resolution_clock::now();
-        auto elapsedSinceLastFrame = startOfFrame - lastFrameTime;
+    while (!m_stopFlag) {
+        auto start_time = std::chrono::high_resolution_clock::now();
 
-        // Enforce frame pacing if a target frame rate is set.
-        if (m_targetFrameTime.count() > 0 && elapsedSinceLastFrame < m_targetFrameTime) {
-            // Simple sleep to yield CPU time. More advanced implementations might use
-            // a busy-wait loop for higher precision, but this is less resource-intensive.
-            std::this_thread::sleep_for(m_targetFrameTime - elapsedSinceLastFrame);
-        }
-        lastFrameTime = std::chrono::high_resolution_clock::now();
-
-        // --- Main Graphics Pipeline Execution --- //
-
-        // 1. Capture the next frame.
-        HRESULT captureResult = m_capturePipeline->CaptureNextFrame();
-        if (FAILED(captureResult)) {
-            // If capture fails (e.g., window closed, mode switched), we can pause or log.
-            // For now, just continue the loop.
-            continue;
+        // 1. Capture Frame
+        ID3D11Texture2D* captured_frame = nullptr;
+        if (m_capturePipeline) {
+             // In a real scenario, handle potential errors from CaptureFrame
+            m_capturePipeline->CaptureFrame(&captured_frame);
         }
 
-        // Retrieve the captured frame textures.
-        ID3D11Texture2D* currentFrame = m_capturePipeline->GetCurrentFrame();
-        ID3D11Texture2D* previousFrame = m_capturePipeline->GetPreviousFrame();
-
-        if (!currentFrame) {
-            continue;
+        // 2. Process Frame (e.g., apply effects, generate frames)
+        ID3D11Texture2D* processed_frame = nullptr;
+        if (captured_frame) {
+            // Placeholder for frame processing/generation logic
+            // For now, we'll just use the captured frame directly.
+            processed_frame = captured_frame; 
+            // In a real implementation, you might call RXNFrameGeneration here.
         }
 
-        // Retrieve the current settings for this frame.
-        const RXNSettings& settings = m_configManager->GetSettings();
-
-        // 2. Execute Super Resolution (RXSR 1.0) - Placeholder
-        if (settings.enableSR) {
-            // Pass 'currentFrame' to the RXNSuperResolution module.
-            // This module will apply its compute shader for upscaling and sharpening.
-            // (Code for this step will be implemented in the next phase)
+        // 3. Render Frame (if applicable)
+        if (processed_frame) {
+            // Placeholder for rendering logic
+            // Render processed_frame to the back buffer or final output.
         }
 
-        // 3. Execute Frame Generation (RXFG 1.0) - Placeholder
-        if (settings.enableFG) {
-            // Pass 'currentFrame' and 'previousFrame' to the RXNFrameGeneration module.
-            // This module will run its pixel-displacement estimation pass.
-            // (Code for this step will be implemented in the next phase)
-        }
+        // Clean up the captured frame if it was a separate resource
+        if (captured_frame) captured_frame->Release();
 
-        // 4. Present the final frame.
-        // In our architecture, the final processed frame will be passed to the UI
-        // manager's renderer (e.g., rxn_ui_renderer_dcomp) for display.
-        // For now, this step is implicit.
+        // Frame time limiting
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+
+        if (elapsed < frame_duration) {
+            std::this_thread::sleep_for(frame_duration - elapsed);
+        }
+        // Update last_frame_time for potential FPS calculation
+        last_frame_time = std::chrono::high_resolution_clock::now(); 
     }
 }
