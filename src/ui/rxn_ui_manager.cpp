@@ -1,163 +1,128 @@
 #include "rxn_ui_manager.h"
-#include "../main/rxn_config.h" // For RXNConfig and its settings
+#include "../main/rxn_config.h"
+#include <stdexcept>
 
-// A global pointer to the manager instance to be accessible from the static WndProc.
-// This is a common pattern in Win32 C++ applications.
-static RXNUIManager* g_uiManagerInstance = nullptr;
+// Global pointer to the UI manager instance for the WndProc
+static RXNUIManager* g_uiManager = nullptr;
 
-RXNUIManager::RXNUIManager() : m_stopFlag(false), m_hInstance(nullptr), m_configManager(nullptr) {
-    g_uiManagerInstance = this;
-}
+// Forward declare the message handler
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+
+RXNUIManager::RXNUIManager()
+    : m_stopFlag(false),
+      m_hInstance(nullptr),
+      m_hWnd(nullptr),
+      m_configManager(nullptr) {}
 
 RXNUIManager::~RXNUIManager() {
     Stop();
-    g_uiManagerInstance = nullptr;
+}
+
+RXNConfig* RXNUIManager::GetConfig() {
+    return m_configManager;
 }
 
 bool RXNUIManager::Initialize(HINSTANCE hInstance, RXNConfig* config_manager) {
     m_hInstance = hInstance;
     m_configManager = config_manager;
-    return (m_hInstance != nullptr && m_configManager != nullptr);
+    g_uiManager = this; // Set the global pointer
+
+    // Start the UI thread, which will create the window
+    Start();
+    return m_hWnd != nullptr;
 }
 
 void RXNUIManager::Start() {
-    if (m_uiThread.joinable()) {
-        return; // Already running
-    }
-    m_stopFlag.store(false);
+    if (m_uiThread.joinable()) return;
+
+    m_stopFlag = false;
     m_uiThread = std::thread(&RXNUIManager::UIThreadFunction, this);
 }
 
 void RXNUIManager::Stop() {
-    m_stopFlag.store(true);
-    // Post a quit message to unblock the message loop if it's waiting.
-    if (m_hwnd) {
-        PostMessage(m_hwnd, WM_QUIT, 0, 0);
-    }
+    m_stopFlag = true;
     if (m_uiThread.joinable()) {
+        // If the message loop is blocked, post a quit message to unblock it
+        if (m_hWnd) PostMessage(m_hWnd, WM_CLOSE, 0, 0);
         m_uiThread.join();
     }
 }
 
 HWND RXNUIManager::GetWindowHandle() const {
-    return m_hwnd;
+    return m_hWnd;
 }
 
 void RXNUIManager::UIThreadFunction() {
-    // 1. Register the window class.
-    const wchar_t CLASS_NAME[] = L"RXN Dashboard Class";
-
-    WNDCLASSEXW wc = { };
-    wc.cbSize = sizeof(WNDCLASSEXW);
-    wc.style = CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc = RXNUIManager::WndProc;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
+    // --- 1. Register window class ---
+    WNDCLASS wc = {};
+    wc.lpfnWndProc = WndProc;
     wc.hInstance = m_hInstance;
-    wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wc.lpszMenuName = NULL;
-    wc.lpszClassName = CLASS_NAME;
-    wc.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
+    wc.lpszClassName = L"RXNUIWindowClass";
+    RegisterClass(&wc);
 
-    if (!RegisterClassExW(&wc)) {
-        // Handle error
-        return;
-    }
-
-    // 2. Create the window.
-    m_hwnd = CreateWindowExW(
-        0,                              // Optional window styles.
-        CLASS_NAME,                     // Window class
-        L"RXN Dashboard",              // Window text
-        WS_OVERLAPPEDWINDOW,            // Window style
-
-        // Size and position
-        CW_USEDEFAULT, CW_USEDEFAULT, 350, 200,
-
-        NULL,       // Parent window    
-        NULL,       // Menu
-        m_hInstance,  // Instance handle
-        this        // Additional application data
+    // --- 2. Create the window ---
+    m_hWnd = CreateWindowEx(
+        0, L"RXNUIWindowClass", L"RXN Control Panel",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+        CW_USEDEFAULT, CW_USEDEFAULT, 250, 150,
+        nullptr, nullptr, m_hInstance, nullptr
     );
 
-    if (m_hwnd == NULL) {
-        return;
+    if (!m_hWnd) {
+        throw std::runtime_error("Failed to create UI window.");
     }
 
-    // Retrieve the initial settings to configure the UI.
-    const RXNSettings& settings = m_configManager->GetSettings();
+    // --- 3. Create controls ---
+    // Super Resolution Toggle
+    CreateWindowW(L"static", L"Super Resolution:", WS_CHILD | WS_VISIBLE,
+                  10, 20, 150, 20, m_hWnd, (HMENU)IDC_LABEL_SR, m_hInstance, nullptr);
+    HWND hwndSRToggle = CreateWindowW(L"button", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+                                    170, 20, 20, 20, m_hWnd, (HMENU)IDC_TOGGLE_SR, m_hInstance, nullptr);
 
-    // 3. Create the UI controls.
-    m_hwndToggleSR = CreateWindowW(L"BUTTON", L"Enable Super Resolution (SR)", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 10, 10, 250, 25, m_hwnd, (HMENU)IDC_TOGGLE_SR, m_hInstance, NULL);
-    CheckDlgButton(m_hwnd, IDC_TOGGLE_SR, settings.enableSR ? BST_CHECKED : BST_UNCHECKED);
+    // --- 4. Initialize control states from config ---
+    if (m_configManager) {
+        // Use correct Win32 API signature for CheckDlgButton
+        CheckDlgButton(m_hWnd, IDC_TOGGLE_SR, m_configManager->GetSettings().enableSuperResolution ? BST_CHECKED : BST_UNCHECKED);
+    }
 
-    m_hwndToggleFG = CreateWindowW(L"BUTTON", L"Enable Frame Generation (FG)", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 10, 50, 250, 25, m_hwnd, (HMENU)IDC_TOGGLE_FG, m_hInstance, NULL);
-    CheckDlgButton(m_hwnd, IDC_TOGGLE_FG, settings.enableFG ? BST_CHECKED : BST_UNCHECKED);
+    ShowWindow(m_hWnd, SW_SHOW);
 
-    ShowWindow(m_hwnd, SW_SHOW);
-    UpdateWindow(m_hwnd);
-
-    // 4. Run the message loop.
-    MSG msg = { };
-    while (GetMessage(&msg, NULL, 0, 0) > 0) {
-        if (m_stopFlag.load()) {
-            break; 
-        }
+    // --- 5. Message Loop ---
+    MSG msg = {};
+    while (GetMessage(&msg, nullptr, 0, 0) > 0 && !m_stopFlag) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 
-    DestroyWindow(m_hwnd);
-    UnregisterClassW(CLASS_NAME, m_hInstance);
+    DestroyWindow(m_hWnd);
+    m_hWnd = nullptr;
 }
 
-LRESULT CALLBACK RXNUIManager::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    switch (uMsg) {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-
-    case WM_COMMAND:
-    {
-        int wmId = LOWORD(wParam);
-        // Parse the menu selections:
-        switch (wmId) {
-        case IDC_TOGGLE_SR:
+// --- Global Window Procedure ---
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
+        case WM_COMMAND:
         {
-            if (g_uiManagerInstance && g_uiManagerInstance->m_configManager) {
-                bool isChecked = (IsDlgButtonChecked(hwnd, IDC_TOGGLE_SR) == BST_CHECKED);
-                RXNSettings currentSettings = g_uiManagerInstance->m_configManager->GetSettings();
-                currentSettings.enableSR = isChecked;
-                g_uiManagerInstance->m_configManager->SaveSettings(currentSettings);
+            int wmId = LOWORD(wParam);
+            if (g_uiManager && g_uiManager->GetConfig()) {
+                RXNConfig* config = g_uiManager->GetConfig();
+                switch (wmId) {
+                    case IDC_TOGGLE_SR:
+                    {
+                        bool isChecked = (IsDlgButtonChecked(hWnd, IDC_TOGGLE_SR) == BST_CHECKED);
+                        config->GetSettings().enableSuperResolution = isChecked;
+                        config->Save(); // Use the correct save method
+                        break;
+                    }
+                }
             }
         }
         break;
-        case IDC_TOGGLE_FG:
-        {
-            if (g_uiManagerInstance && g_uiManagerInstance->m_configManager) {
-                bool isChecked = (IsDlgButtonChecked(hwnd, IDC_TOGGLE_FG) == BST_CHECKED);
-                RXNSettings currentSettings = g_uiManagerInstance->m_configManager->GetSettings();
-                currentSettings.enableFG = isChecked;
-                g_uiManagerInstance->m_configManager->SaveSettings(currentSettings);
-            }
-        }
-        break;
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            break;
         default:
-            return DefWindowProc(hwnd, uMsg, wParam, lParam);
-        }
-    }
-    break;
-
-    case WM_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hwnd, &ps);
-        FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
-        EndPaint(hwnd, &ps);
+            return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
-    }
-    return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
