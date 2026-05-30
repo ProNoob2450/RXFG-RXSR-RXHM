@@ -1,0 +1,37 @@
+name: Build RXN Dashboard Executable
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Setup MSVC Developer Environment
+      uses: microsoft/setup-msbuild@v1.1
+
+    - name: Compile Application with MSVC
+      shell: cmd
+      run: |
+        cl.exe /EHsc /O2 /std:c++17 /Fe:rxn-labs.exe ^
+        src/main/main.cpp ^
+        src/main/rxn_config.cpp ^
+        src/telemetry/rxn_hardware_monitor.cpp ^
+        src/ui/rxn_ui_manager.cpp ^
+        src/ui/rxn_ui_renderer_dwm.cpp ^
+        src/ui/rxn_ui_renderer_dcomp.cpp ^
+        src/graphics/rxn_graphics_engine.cpp ^
+        src/graphics/rxn_super_resolution.cpp ^
+        src/graphics/rxn_frame_generation.cpp ^
+        /link gdi32.lib dwmapi.lib d3d11.lib dcomp.lib user32.lib
+
+    - name: Upload Release Executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: rxn-dashboard-release
+        path: rxn-labs.exe
