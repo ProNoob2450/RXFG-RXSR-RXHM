@@ -12,7 +12,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Configure MSVC Developer Command Prompt
+    - name: Setup MSVC Developer Environment
       uses: ilammy/msvc-dev-cmd@v1
 
     - name: Compile Application with MSVC
@@ -22,7 +22,6 @@ jobs:
         src/main/main.cpp ^
         src/main/rxn_config.cpp ^
         src/telemetry/rxn_hardware_monitor.cpp ^
-        src/telemetry/rxn_game_optimizer.cpp ^
         src/ui/rxn_ui_manager.cpp ^
         src/ui/rxn_ui_renderer_dwm.cpp ^
         src/ui/rxn_ui_renderer_dcomp.cpp ^
@@ -30,7 +29,7 @@ jobs:
         src/graphics/rxn_super_resolution.cpp ^
         src/graphics/rxn_frame_generation.cpp ^
         src/graphics/rxn_capture_pipeline.cpp ^
-        /link gdi32.lib dwmapi.lib d3d11.lib dcomp.lib user32.lib ole32.lib
+        /link gdi32.lib dwmapi.lib d3d11.lib dcomp.lib user32.lib ole32.lib dxgi.lib windowsapp.lib
 
     - name: Upload Release Executable
       uses: actions/upload-artifact@v4
