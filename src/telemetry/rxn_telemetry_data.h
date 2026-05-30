@@ -27,7 +27,7 @@ struct RXNTelemetryData {
 
     // Explicitly define copy and move constructors/assignments for clarity
     RXNTelemetryData(const RXNTelemetryData&) = default;
-    RXNTelemetryData& operator=(const RXN_TelemetryData&) = default;
+    RXNTelemetryData& operator=(const RXNTelemetryData&) = default;
     RXNTelemetryData(RXNTelemetryData&&) = default;
     RXNTelemetryData& operator=(RXNTelemetryData&&) = default;
 };
