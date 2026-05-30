@@ -1,6 +1,5 @@
 #include "rxn_hardware_monitor.h"
-#include <chrono>
-#include <cmath> // For sin and cos
+#include <chrono> // For std::chrono
 
 RXNHardwareMonitor::RXNHardwareMonitor() : m_stopFlag(false) {}
 
@@ -9,15 +8,17 @@ RXNHardwareMonitor::~RXNHardwareMonitor() {
 }
 
 void RXNHardwareMonitor::Initialize() {
-    // In a real implementation, this would initialize connections to
-    // hardware monitoring APIs (e.g., NVML, PDH, etc.)
+    // In a real-world scenario, this is where you'd initialize your hardware
+    // monitoring libraries (e.g., NVML for NVIDIA, AGS for AMD, or PDH for Windows).
+    // For this example, we'll keep it simple.
 }
 
 void RXNHardwareMonitor::Start() {
-    if (!m_monitorThread.joinable()) {
-        m_stopFlag = false;
-        m_monitorThread = std::thread(&RXNHardwareMonitor::MonitorLoop, this);
+    if (m_monitorThread.joinable()) {
+        return; // Already running
     }
+    m_stopFlag = false;
+    m_monitorThread = std::thread(&RXNHardwareMonitor::MonitorLoop, this);
 }
 
 void RXNHardwareMonitor::Stop() {
@@ -27,10 +28,9 @@ void RXNHardwareMonitor::Stop() {
     }
 }
 
-// Safely retrieves the latest collected telemetry data.
 RXNTelemetryData RXNHardwareMonitor::GetLatestData() const {
     RXNTelemetryData snapshot;
-    // Atomically load the values from the internal atomic members.
+    // Atomically load the current values into the snapshot struct.
     snapshot.cpuUsage = m_atomicTelemetryData.cpuUsage.load(std::memory_order_relaxed);
     snapshot.gpuUsage = m_atomicTelemetryData.gpuUsage.load(std::memory_order_relaxed);
     snapshot.ramUsage = m_atomicTelemetryData.ramUsage.load(std::memory_order_relaxed);
@@ -43,18 +43,27 @@ RXNTelemetryData RXNHardwareMonitor::GetLatestData() const {
 
 void RXNHardwareMonitor::MonitorLoop() {
     while (!m_stopFlag) {
-        // In a real implementation, poll hardware APIs here.
-        // For now, simulate data changing.
-        double time = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::high_resolution_clock::now().time_since_epoch()
-        ).count() / 1000.0;
+        // --- Placeholder Data Collection ---
+        // In a real implementation, you would query hardware APIs here.
+        // We'll simulate some data changes for demonstration.
+        double simulated_cpu_usage = 50.0 + (rand() % 10 - 5); // 45-55%
+        double simulated_gpu_usage = 70.0 + (rand() % 10 - 5); // 65-75%
+        double simulated_ram_usage = 40.0 + (rand() % 5);       // 40-45%
+        double simulated_gpu_temp = 75.0 + (rand() % 5 - 2);     // 73-78 C
 
-        m_atomicTelemetryData.cpuUsage.store(50.0 + 10.0 * sin(time), std::memory_order_relaxed);
-        m_atomicTelemetryData.gpuUsage.store(70.0 + 15.0 * cos(time), std::memory_order_relaxed);
-        m_atomicTelemetryData.ramUsage.store(45.0 + 5.0 * sin(time * 0.5), std::memory_order_relaxed);
-        m_atomicTelemetryData.gpuTemperature.store(65.0 + 5.0 * cos(time * 0.2), std::memory_order_relaxed);
-        m_atomicTelemetryData.currentFps.store(144 + static_cast<int>(20 * sin(time * 2.0)), std::memory_order_relaxed);
+        // Atomically store the new values.
+        m_atomicTelemetryData.cpuUsage.store(simulated_cpu_usage, std::memory_order_relaxed);
+        m_atomicTelemetryData.gpuUsage.store(simulated_gpu_usage, std::memory_order_relaxed);
+        m_atomicTelemetryData.ramUsage.store(simulated_ram_usage, std::memory_order_relaxed);
+        m_atomicTelemetryData.gpuTemperature.store(simulated_gpu_temp, std::memory_order_relaxed);
+        
+        // The FPS and frame time would likely be updated from the graphics engine,
+        // but we simulate it here for completeness.
+        int simulated_fps = 58 + (rand() % 5); // 58-62 FPS
+        m_atomicTelemetryData.currentFps.store(simulated_fps, std::memory_order_relaxed);
+        m_atomicTelemetryData.frameTime.store(1000.0 / simulated_fps, std::memory_order_relaxed);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Poll every 100ms
+        // Sleep for a defined interval (e.g., 1 second) to avoid busy-waiting.
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }

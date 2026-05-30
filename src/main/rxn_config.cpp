@@ -1,66 +1,35 @@
 #include "rxn_config.h"
+#include <vector> // Required for std::make_unique<std::vector...>
 
-// In a real implementation, this would use a JSON library
-// (e.g., nlohmann/json, CppCore/JSON) to parse and serialize.
+// Minimal definition for RXNProfile for compilation. 
+// In a real scenario, this would be in its own header.
+struct RXNProfile {
+    std::wstring name;
+};
 
-RXNConfig::RXNConfig()
-    : m_backdropType(SystemBackdropType::Mica),
-      m_superResolutionEnabled(false),
-      m_frameGenerationEnabled(false),
-      m_targetWindow(nullptr) {}
-
-// Loads settings from the specified JSON file.
-bool RXNConfig::Initialize(const wchar_t* config_path) {
-    m_configPath = config_path;
-    LoadSettings();
-    return true; // Placeholder
+RXNConfig::RXNConfig() {
+    // Initialize the profiles vector.
+    m_profiles = std::make_unique<std::vector<RXNProfile>>();
 }
 
-// Saves the current settings to the JSON file.
-void RXNConfig::SaveSettings() {
-    // In a real implementation, serialize m_backdropType, etc.,
-    // to the file at m_configPath.
+RXNConfig::~RXNConfig() {
+    // Dtor will automatically clean up m_profiles via unique_ptr.
 }
 
-// In a real implementation, this would load from m_configPath.
-void RXNConfig::LoadSettings() {
-    // Placeholder: Set default values.
-    m_backdropType = SystemBackdropType::Mica;
-    m_superResolutionEnabled = false;
-    m_frameGenerationEnabled = false;
-    m_targetWindow = nullptr;
+void RXNConfig::Initialize(const std::wstring& config_path) {
+    m_configFilePath = config_path;
+    // In a real application, you would load the config from the path.
+    // For now, we'll just use the default settings.
 }
 
-// --- Getters and Setters ---
-
-SystemBackdropType RXNConfig::GetSystemBackdropType() const {
-    return m_backdropType;
+void RXNConfig::Save() {
+    // In a real application, you would serialize m_settings to m_configFilePath.
 }
 
-void RXNConfig::SetSystemBackdropType(SystemBackdropType type) {
-    m_backdropType = type;
+RXNSettings& RXNConfig::GetSettings() {
+    return m_settings;
 }
 
-bool RXNConfig::IsSuperResolutionEnabled() const {
-    return m_superResolutionEnabled;
-}
-
-void RXNConfig::SetSuperResolutionEnabled(bool enabled) {
-    m_superResolutionEnabled = enabled;
-}
-
-bool RXNConfig::IsFrameGenerationEnabled() const {
-    return m_frameGenerationEnabled;
-}
-
-void RXNConfig::SetFrameGenerationEnabled(bool enabled) {
-    m_frameGenerationEnabled = enabled;
-}
-
-HWND RXNConfig::GetTargetWindow() const {
-    return m_targetWindow;
-}
-
-void RXNConfig::SetTargetWindow(HWND hwnd) {
-    m_targetWindow = hwnd;
+const RXNSettings& RXNConfig::GetSettings() const {
+    return m_settings;
 }

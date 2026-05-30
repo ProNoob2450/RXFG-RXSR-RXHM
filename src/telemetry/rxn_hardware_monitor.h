@@ -1,17 +1,17 @@
 #pragma once
-
 #include <thread>
 #include <atomic>
-#include "rxn_telemetry_data.h" // Plain data struct
+#include <memory>
+#include "rxn_telemetry_data.h"
 
-// Internal struct with atomic members for thread-safe updates
+// Forward declaration to hide implementation details
 struct RXNAtomicTelemetryData {
     std::atomic<double> cpuUsage{0.0};
     std::atomic<double> gpuUsage{0.0};
     std::atomic<double> ramUsage{0.0};
     std::atomic<double> gpuTemperature{0.0};
-    std::atomic<int>   currentFps{0};
-    std::atomic<int>   averageFps{0};
+    std::atomic<int> currentFps{0};
+    std::atomic<int> averageFps{0};
     std::atomic<double> frameTime{0.0};
 };
 
@@ -23,25 +23,27 @@ public:
     // Initializes the hardware monitor.
     void Initialize();
 
-    // Starts the background monitoring thread.
+    // Starts the monitoring thread.
     void Start();
 
-    // Stops the background monitoring thread.
+    // Stops the monitoring thread.
     void Stop();
 
-    // Safely retrieves the latest collected telemetry data as a plain struct.
+    /**
+     * @brief Safely retrieves the latest collected telemetry data.
+     * @return A snapshot of the telemetry data.
+     */
     RXNTelemetryData GetLatestData() const;
 
 private:
-    // The background thread for polling hardware data.
-    std::thread m_monitorThread;
+    // The internal monitoring loop that runs on a separate thread.
+    void MonitorLoop();
 
-    // Atomic flag to control the thread's lifecycle.
+    std::thread m_monitorThread;
     std::atomic<bool> m_stopFlag;
 
-    // The internal, thread-safe data structure with atomic members.
-    RXNAtomicTelemetryData m_atomicTelemetryData;
-
-    // The main loop for the monitoring thread.
-    void MonitorLoop();
+    // Holds the latest telemetry data, updated by the monitor thread.
+    // Using the Pimpl idiom or a nested struct is a good practice to
+    // keep the header clean and compilation times fast.
+    mutable RXNAtomicTelemetryData m_atomicTelemetryData;
 };

@@ -2,58 +2,46 @@
 
 #include <string>
 #include <vector>
-#include <windows.h> // For HWND
+#include <memory>
 
-// Defines the available DWM backdrop materials for the UI.
+// Forward declaration to avoid including the full profile header here.
+struct RXNProfile;
+
 enum class SystemBackdropType {
-    None,
-    Mica,
-    Acrylic,
-    MicaAlt
+    None,    // No backdrop
+    Mica,    // Recommended for main application windows
+    Acrylic, // Recommended for transient UI (popups, dialogs)
+    MicaAlt  // A variant of Mica
+};
+
+struct RXNSettings {
+    int targetFramerate = 60;
+    bool enableSuperResolution = false;
+    float superResolutionUpscaleFactor = 1.5f;
+    SystemBackdropType backdropPreference = SystemBackdropType::Mica;
 };
 
 class RXNConfig {
 public:
     RXNConfig();
+    ~RXNConfig();
 
-    // Loads settings from the specified JSON file.
-    bool Initialize(const wchar_t* config_path);
+    // Initializes and loads the configuration.
+    void Initialize(const std::wstring& config_path);
 
-    // Saves the current settings to the JSON file.
-    void SaveSettings();
+    // Saves the current configuration to disk.
+    void Save();
 
-    // --- Getters and Setters for Configuration Properties ---
+    // Retrieves a mutable reference to the settings.
+    RXNSettings& GetSettings();
 
-    SystemBackdropType GetSystemBackdropType() const;
-    void SetSystemBackdropType(SystemBackdropType type);
-
-    bool IsSuperResolutionEnabled() const;
-    void SetSuperResolutionEnabled(bool enabled);
-
-    bool IsFrameGenerationEnabled() const;
-    void SetFrameGenerationEnabled(bool enabled);
-
-    HWND GetTargetWindow() const;
-    void SetTargetWindow(HWND hwnd);
+    // Retrieves a constant reference to the settings.
+    const RXNSettings& GetSettings() const;
 
 private:
-    // Path to the configuration file.
-    std::wstring m_configPath;
-
-    // --- Configuration Properties ---
-
-    // The type of DWM backdrop to apply (e.g., Mica, Acrylic).
-    SystemBackdropType m_backdropType;
-
-    // Flag indicating whether super resolution is enabled.
-    bool m_superResolutionEnabled;
-
-    // Flag indicating whether frame generation is enabled.
-    bool m_frameGenerationEnabled;
-
-    // The target window for the capture pipeline.
-    HWND m_targetWindow;
-
-    // Helper method to load settings from the member path.
-    void LoadSettings();
+    RXNSettings m_settings;
+    std::wstring m_configFilePath;
+    // Using a pointer to a vector of profiles to avoid issues with incomplete types
+    // and to better manage memory/lifetime.
+    std::unique_ptr<std::vector<RXNProfile>> m_profiles;
 };
