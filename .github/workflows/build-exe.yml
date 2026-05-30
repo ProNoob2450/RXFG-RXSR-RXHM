@@ -15,10 +15,13 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
+    - name: Setup MSVC Developer Environment
+      uses: ilammy/msvc-dev-cmd@v1
+
     - name: Compile Application with MSVC
       shell: cmd
       run: |
-        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\cl.exe" /EHsc /O2 /std:c++17 /Fe:rxn-labs.exe ^
+        cl.exe /EHsc /O2 /std:c++17 /Fe:rxn-labs.exe ^
         src/main/main.cpp ^
         src/main/rxn_config.cpp ^
         src/telemetry/rxn_hardware_monitor.cpp ^
@@ -30,7 +33,7 @@ jobs:
         src/graphics/rxn_super_resolution.cpp ^
         src/graphics/rxn_frame_generation.cpp ^
         src/graphics/rxn_capture_pipeline.cpp ^
-        /link /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0\um\x64" gdi32.lib dwmapi.lib d3d11.lib dcomp.lib user32.lib ole32.lib dxgi.lib windowsapp.lib
+        /link gdi32.lib dwmapi.lib d3d11.lib dcomp.lib user32.lib ole32.lib dxgi.lib windowsapp.lib
 
     - name: Upload Release Executable
       uses: actions/upload-artifact@v4
