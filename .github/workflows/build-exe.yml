@@ -15,12 +15,10 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Setup MSVC Developer Environment
-      uses: ilammy/msvc-dev-cmd@v1
-
     - name: Compile Application with MSVC
       shell: cmd
       run: |
+        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         cl.exe /EHsc /O2 /std:c++17 /Fe:rxn-labs.exe ^
         src/main/main.cpp ^
         src/main/rxn_config.cpp ^
